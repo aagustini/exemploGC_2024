@@ -6,12 +6,12 @@
 %}
  
 
-%token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, IF, ELSE
-%token WHILE,TRUE, FALSE, IF, ELSE
+%token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, IF, ELSE, INC
+%token WHILE,TRUE, FALSE, IF, ELSE, DO
 %token EQ, LEQ, GEQ, NEQ 
-%token AND, OR
+%token AND, OR , PLUSE
 
-%right '='
+%right '=' PLUSE
 %left OR
 %left AND
 %left  '>' '<' EQ LEQ GEQ NEQ
@@ -50,12 +50,8 @@ lcmd : lcmd cmd
 	   |
 	   ;
 	   
-cmd :  ID '=' exp	';' {  System.out.println("\tPOPL %EDX");
-  						   System.out.println("\tMOVL %EDX, _"+$1);
-					     }
-			| '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
-					     
-					       
+cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
+			| exp ';'		     	       
       | WRITE '(' LIT ')' ';' { strTab.add($3);
                                 System.out.println("\tMOVL $_str_"+strCount+"Len, %EDX"); 
 				System.out.println("\tMOVL $_str_"+strCount+", %ECX"); 
@@ -116,7 +112,25 @@ cmd :  ID '=' exp	';' {  System.out.println("\tPOPL %EDX");
 											System.out.printf("rot_%02d:\n",pRot.peek()+1);
 											pRot.pop();
 										}
+		|
+		DO {
+			pRot.push(proxRot);  proxRot += 2;
+			System.out.printf("rot_%02d:\n",pRot.peek());
+		}
+		cmd WHILE '(' exp ')' ';' 
+					{
+			 		System.out.println("\tPOPL %EAX   # desvia se falso...");
+					System.out.println("\tCMPL $0, %EAX");
+					System.out.printf("\tJE rot_%02d\n", (int)pRot.peek()+1);
+					} 
+					{
+					System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRot.peek());
+					System.out.printf("rot_%02d:\n",(int)pRot.peek()+1);
+					pRot.pop();
+					}
      ;
+
+
      
      
 restoIf : ELSE  {
@@ -156,7 +170,41 @@ exp :  NUM  { System.out.println("\tPUSHL $"+$1); }
 												
 		| exp OR exp		{ gcExpLog(OR); }											
 		| exp AND exp		{ gcExpLog(AND); }											
-		
+		| ID '=' exp    {  System.out.println("\tPOPL %EDX");
+											System.out.println("\tMOVL %EDX, _"+$1);
+											System.out.println("\tPUSHL _"+$1);
+					     }
+		| ID INC { System.out.println("\tPUSHL _"+$1);
+							 System.out.println("\tPUSHL $1");
+							 System.out.println("\tPUSHL _"+$1);
+							 gcExpArit('+');
+							 System.out.println("\tPOPL %EDX");
+  						 System.out.println("\tMOVL %EDX, _"+$1);							
+								
+							 }
+							 
+		| INC ID { System.out.println("\tPUSHL _"+$2);
+							 System.out.println("\tPUSHL $1");
+							 gcExpArit('+');
+							 System.out.println("\tPOPL %EDX");
+  						 System.out.println("\tMOVL %EDX, _"+$2);
+							 System.out.println("\tPUSHL _"+$2);
+							 }
+
+		| ID PLUSE exp { System.out.println("\tPUSHL _"+$1);
+								gcExpArit('+');
+								System.out.println("\tPOPL %EDX");
+								System.out.println("\tMOVL %EDX, _"+$1);
+								}
+		| exp {	
+
+											System.out.println("\tPOPL %EAX");
+											System.out.println("\tCMPL $0, %EAX");
+											System.out.printf("\tJE rot_%02d\n", pRot.peek()+1);
+										}
+			'?' exp { pRot.push(proxRot);  proxRot += 1; }
+			':' exp {System.out.printf("\tJMP rot_%02d\n", pRot.peek()+1);
+								System.out.printf("rot_%02d:\n",pRot.peek());} ';'
 		;							
 
 

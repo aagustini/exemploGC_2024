@@ -1,0 +1,10 @@
+int value;
+
+void main() {
+    value = 0;
+    
+    do {
+        value = value + 1;
+        write("value ", value);
+    } while (value < 5);
+}
