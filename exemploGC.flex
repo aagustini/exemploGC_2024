@@ -50,7 +50,7 @@ NL  = \n | \r | \r\n
 "}" |
 "," |
 "\[" |
-"?"|
+"?" |
  ":"  |
 "\]"    { return (int) yycharat(0); }
 
@@ -79,6 +79,9 @@ if   { return Parser.IF; }
 else   { return Parser.ELSE; }
 true   { return Parser.TRUE; }
 false   { return Parser.FALSE; }
+continue  { return Parser.CONTINUE; }
+break  { return Parser.BREAK; }
+for { return Parser.FOR; }
 
 
 

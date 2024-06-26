@@ -6,16 +6,17 @@
 %}
  
 
-%token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, IF, ELSE, INC
-%token WHILE,TRUE, FALSE, IF, ELSE, DO
+%token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, IF, ELSE, INC, BREAK, CONTINUE, FOR
+%token WHILE,TRUE, FALSE, DO
 %token EQ, LEQ, GEQ, NEQ 
-%token AND, OR , PLUSE
+%token AND, OR , PLUSE, FOR
 
 %right '=' PLUSE
+%left '?' ':'
 %left OR
 %left AND
 %left  '>' '<' EQ LEQ GEQ NEQ
-%left '+' '-'
+%left '+' '-' 
 %left '*' '/' '%'
 %left '!' 
 
@@ -51,7 +52,7 @@ lcmd : lcmd cmd
 	   ;
 	   
 cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
-			| exp ';'		     	       
+			| exp ';'	{}	     	       
       | WRITE '(' LIT ')' ';' { strTab.add($3);
                                 System.out.println("\tMOVL $_str_"+strCount+"Len, %EDX"); 
 				System.out.println("\tMOVL $_str_"+strCount+", %ECX"); 
@@ -85,18 +86,18 @@ cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
 								}
          
     | WHILE {
-					pRot.push(proxRot);  proxRot += 2;
-					System.out.printf("rot_%02d:\n",pRot.peek());
+					pRotRep.push(proxRot);  proxRot += 2;
+					System.out.printf("rot_%02d:\n",pRotRep.peek());
 				  } 
 			 '(' exp ')' {
 			 							System.out.println("\tPOPL %EAX   # desvia se falso...");
 											System.out.println("\tCMPL $0, %EAX");
-											System.out.printf("\tJE rot_%02d\n", (int)pRot.peek()+1);
+											System.out.printf("\tJE rot_%02d\n", (int)pRotRep.peek()+1);
 										} 
 				cmd		{
-				  		System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRot.peek());
-							System.out.printf("rot_%02d:\n",(int)pRot.peek()+1);
-							pRot.pop();
+				  		System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRotRep.peek());
+							System.out.printf("rot_%02d:\n",(int)pRotRep.peek()+1);
+							pRotRep.pop();
 							}  
 							
 			| IF '(' exp {	
@@ -114,23 +115,50 @@ cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
 										}
 		|
 		DO {
-			pRot.push(proxRot);  proxRot += 2;
-			System.out.printf("rot_%02d:\n",pRot.peek());
+			pRotRep.push(proxRot);  proxRot += 2;
+			System.out.printf("rot_%02d:\n",pRotRep.peek());
 		}
 		cmd WHILE '(' exp ')' ';' 
 					{
 			 		System.out.println("\tPOPL %EAX   # desvia se falso...");
 					System.out.println("\tCMPL $0, %EAX");
-					System.out.printf("\tJE rot_%02d\n", (int)pRot.peek()+1);
+					System.out.printf("\tJE rot_%02d\n", (int)pRotRep.peek()+1);
 					} 
 					{
-					System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRot.peek());
-					System.out.printf("rot_%02d:\n",(int)pRot.peek()+1);
-					pRot.pop();
+					System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRotRep.peek());
+					System.out.printf("rot_%02d:\n",(int)pRotRep.peek()+1);
+					pRotRep.pop();
 					}
+
+			| CONTINUE ';' {	System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRotRep.peek());}
+			| BREAK ';' {System.out.printf("\tJMP rot_%02d   # terminou cmd na linha de cima\n", pRotRep.peek()+1);}
+			| FOR '(' expOpc ';'
+					{
+			  		pRotRep.push(proxRot);  proxRot += 4;
+						System.out.printf("rot_%02d:\n",pRotRep.peek());
+						}
+					 expOpcL ';' {
+						System.out.println("\tPOPL %EAX   # desvia se falso...");
+					  System.out.println("\tCMPL $0, %EAX");
+					  System.out.printf("\tJE rot_%02d\n", (int)pRotRep.peek()+1);
+						System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+2);
+					
+						System.out.printf("rot_%02d:\n",pRotRep.peek()+3);
+					 }
+	       expOpc ')'
+				  {						System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+2);		
+						System.out.printf("rot_%02d:\n",pRotRep.peek()+2);} 
+				 cmd
+				 {				
+					System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+3);		
+					  System.out.printf("rot_%02d:\n",pRotRep.peek()+1);
+				              pRotRep.pop();}
      ;
-
-
+		
+		expOpc : exp | ;
+		expOpcL : exp 
+					| { System.out.println("\tPUSHL $1"); } 
+					;  
      
      
 restoIf : ELSE  {
@@ -145,7 +173,11 @@ restoIf : ELSE  {
 		   System.out.printf("\tJMP rot_%02d\n", pRot.peek()+1);
 				System.out.printf("rot_%02d:\n",pRot.peek());
 				} 
-		;										
+		;						
+
+
+
+
 
 
 exp :  NUM  { System.out.println("\tPUSHL $"+$1); } 
@@ -197,14 +229,19 @@ exp :  NUM  { System.out.println("\tPUSHL $"+$1); }
 								System.out.println("\tMOVL %EDX, _"+$1);
 								}
 		| exp {	
-
+											pRot.push(proxRot);  proxRot += 2;
 											System.out.println("\tPOPL %EAX");
 											System.out.println("\tCMPL $0, %EAX");
-											System.out.printf("\tJE rot_%02d\n", pRot.peek()+1);
+											System.out.printf("\tJE rot_%02d\n", pRot.peek());
 										}
-			'?' exp { pRot.push(proxRot);  proxRot += 1; }
-			':' exp {System.out.printf("\tJMP rot_%02d\n", pRot.peek()+1);
-								System.out.printf("rot_%02d:\n",pRot.peek());} ';'
+			'?' exp 
+			 { System.out.printf("\tJMP rot_%02d\n", pRot.peek()+1);
+											System.out.printf("rot_%02d:\n",pRot.peek());} 
+			':'	exp {
+											System.out.printf("rot_%02d:\n",pRot.peek()+1);
+											pRot.pop();
+											}
+								
 		;							
 
 
@@ -218,6 +255,8 @@ exp :  NUM  { System.out.println("\tPUSHL $"+$1); }
   private ArrayList<String> strTab = new ArrayList<String>();
 
   private Stack<Integer> pRot = new Stack<Integer>();
+
+  private Stack<Integer> pRotRep = new Stack<Integer>();
   private int proxRot = 1;
 
 

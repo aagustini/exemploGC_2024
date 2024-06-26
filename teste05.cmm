@@ -3,10 +3,11 @@ int b;
 int c;
 
 void main() {  
-    a = 1;
-    a += a++ + ++a;
+    a = 10;
+    b = 50;
+    c = ( (a<b) ? a : b );
  
-    write (" a (4)=  ", a );
+    write (" c =  ", c );
 
 }
 
