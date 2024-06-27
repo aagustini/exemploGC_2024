@@ -52,7 +52,7 @@ lcmd : lcmd cmd
 	   ;
 	   
 cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
-			| exp ';'	{}	     	       
+			| exp ';'	{System.out.println("\tPOPL %EAX");}	     	       
       | WRITE '(' LIT ')' ';' { strTab.add($3);
                                 System.out.println("\tMOVL $_str_"+strCount+"Len, %EDX"); 
 				System.out.println("\tMOVL $_str_"+strCount+", %ECX"); 
@@ -135,7 +135,7 @@ cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
 			| FOR '(' expOpc ';'
 					{
 			  		pRotRep.push(proxRot);  proxRot += 4;
-						System.out.printf("rot_%02d:\n",pRotRep.peek());
+						System.out.printf("rot_%02d:\n",pRotRep.peek()+3);
 						}
 					 expOpcL ';' {
 						System.out.println("\tPOPL %EAX   # desvia se falso...");
@@ -143,14 +143,15 @@ cmd :  '{' lcmd '}' { System.out.println("\t\t# terminou o bloco..."); }
 					  System.out.printf("\tJE rot_%02d\n", (int)pRotRep.peek()+1);
 						System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+2);
 					
-						System.out.printf("rot_%02d:\n",pRotRep.peek()+3);
+						System.out.printf("rot_%02d:\n",pRotRep.peek());
 					 }
 	       expOpc ')'
-				  {						System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+2);		
+				  {	
+						System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+3);		
 						System.out.printf("rot_%02d:\n",pRotRep.peek()+2);} 
 				 cmd
 				 {				
-					System.out.printf("\tJMP rot_%02d \n", pRotRep.peek()+3);		
+					System.out.printf("\tJMP rot_%02d \n", pRotRep.peek());		
 					  System.out.printf("rot_%02d:\n",pRotRep.peek()+1);
 				              pRotRep.pop();}
      ;
@@ -228,13 +229,13 @@ exp :  NUM  { System.out.println("\tPUSHL $"+$1); }
 								System.out.println("\tPOPL %EDX");
 								System.out.println("\tMOVL %EDX, _"+$1);
 								}
-		| exp {	
+		| exp '?' {	
 											pRot.push(proxRot);  proxRot += 2;
 											System.out.println("\tPOPL %EAX");
 											System.out.println("\tCMPL $0, %EAX");
 											System.out.printf("\tJE rot_%02d\n", pRot.peek());
 										}
-			'?' exp 
+			 exp 
 			 { System.out.printf("\tJMP rot_%02d\n", pRot.peek()+1);
 											System.out.printf("rot_%02d:\n",pRot.peek());} 
 			':'	exp {
